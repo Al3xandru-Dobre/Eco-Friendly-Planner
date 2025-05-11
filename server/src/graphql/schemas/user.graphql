@@ -1,0 +1,36 @@
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  createdAt: String # Vom folosi un scalar custom pentru Date mai târziu, acum String e ok
+}
+
+# Input-uri pentru mutații
+input RegisterInput {
+  name: String!
+  email: String!
+  password: String!
+  confirmPassword: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+# Răspunsul pentru autentificare, care include token-ul
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+# Extindem Query și Mutation din schema principală
+extend type Query {
+  getCurrentUser: User # Va necesita autentificare
+  # getUsers: [User!] # Pentru testare, dacă e nevoie
+}
+
+extend type Mutation {
+  registerUser(registerInput: RegisterInput!): AuthPayload!
+  loginUser(loginInput: LoginInput!): AuthPayload!
+}

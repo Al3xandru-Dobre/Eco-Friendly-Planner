@@ -1,0 +1,61 @@
+type Trip {
+  id: ID!
+  destination: String!
+  startDate: String! # Sau GraphQL Date scalar
+  endDate: String!   # Sau GraphQL Date scalar
+  description: String
+  transportationType: TransportationType # Vom defini acest Enum
+  accommodationType: String
+  ecoRating: Float # 0-5
+  notes: String
+  travelers: [User!] # Relație cu User
+  createdBy: User!   # User-ul care a creat călătoria
+  createdAt: String
+  updatedAt: String
+}
+
+enum TransportationType {
+  TRAIN
+  BUS
+  CAR_ELECTRIC
+  CAR_HYBRID
+  CAR_GASOLINE
+  BICYCLE
+  WALK
+  PLANE # De evitat, dar poate fi o opțiune :)
+  BOAT
+}
+
+input CreateTripInput {
+  destination: String!
+  startDate: String!
+  endDate: String!
+  description: String
+  transportationType: TransportationType
+  accommodationType: String
+  ecoRating: Float
+  notes: String
+}
+
+input UpdateTripInput {
+  destination: String
+  startDate: String
+  endDate: String
+  description: String
+  transportationType: TransportationType
+  accommodationType: String
+  ecoRating: Float
+  notes: String
+}
+
+extend type Query {
+  getTrips: [Trip!]
+  getTrip(tripId: ID!): Trip
+  getUserTrips(userId: ID!): [Trip!] # Călătoriile unui user specific
+}
+
+extend type Mutation {
+  createTrip(createTripInput: CreateTripInput!): Trip!
+  updateTrip(tripId: ID!, updateTripInput: UpdateTripInput!): Trip
+  deleteTrip(tripId: ID!): String # Mesaj de confirmare
+}

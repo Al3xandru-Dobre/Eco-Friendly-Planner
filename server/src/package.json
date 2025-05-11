@@ -1,0 +1,24 @@
+{
+    "name": "eco-travel-planner-server",
+    "version": "1.0.0",
+    "main": "src/server.js",
+    "scripts": {
+      "start": "node src/server.js",
+      "dev": "nodemon src/server.js",
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "dependencies": {
+      "apollo-server-express": "^3.x.x", 
+      "bcryptjs": "^2.4.3",            
+      "cors": "^2.8.5",
+      "dotenv": "^16.x.x",
+      "express": "^4.x.x",
+      "graphql": "^16.x.x",
+      "jsonwebtoken": "^9.x.x",         
+      "mongoose": "^7.x.x"              
+      
+    },
+    "devDependencies": {
+      "nodemon": "^2.x.x"
+    }
+  }
