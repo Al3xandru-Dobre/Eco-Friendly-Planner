@@ -28,19 +28,21 @@ async function startApolloServer() {
       // const token = req.headers.authorization || '';
       // const user = getUserFromToken(token); // Implementează getUserFromToken
       
-      const autoHeader = req.header.autorization || ''
+      const autoHeader = req.headers.authorization || '';
       let user = null ; //initialziam un utilizator gol pentru a-l maniupla apoi cu cerintele si inputul utilizatorului
 
       if(autoHeader){
-        const token = autoHeader.split('Bearer ')[1]
+        const token = autoHeader.split('Bearer ')[1] //extrage token
 
         if(token) {
           try {
-            const decode = jwt.verify(token,process.env.JWT_SECRET)
-            user = decode;
+            const decoded = jwt.verify(token,process.env.JWT_SECRET)
+            user = decoded;
           } catch (err){
             console.warn('Token expirat sau invalid')
           }
+        } else {
+          console.warn('Authorization header format is incorrect, Bearer token not found.');
         }
       }
       return {user,req};

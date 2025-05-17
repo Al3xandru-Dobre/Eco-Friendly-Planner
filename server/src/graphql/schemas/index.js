@@ -12,10 +12,7 @@ const baseTypeDefs = gql`
   }
 `;
 
-console.log('--- SCHEMAS INDEX.JS ---');
-console.log('Type of baseTypeDefs:', typeof baseTypeDefs);
-console.log('Kind of baseTypeDefs:', baseTypeDefs ? baseTypeDefs.kind : 'undefined');
-console.log('Is baseTypeDefs an array:', Array.isArray(baseTypeDefs));
+
 
 
 const userTypeDefs = gql(fs.readFileSync(path.join(__dirname, 'user.graphql'), 'utf-8'));
@@ -26,11 +23,6 @@ const typeDefsArray = [
   userTypeDefs, 
   tripTypeDefs, 
 ];
-
-console.log('Exporting typeDefsArray:', typeDefsArray);
-typeDefsArray.forEach((item, index) => {
-  console.log(`Item ${index} type:`, typeof item, item ? item.kind : 'undefined');
-});
 
 
 module.exports = typeDefsArray;

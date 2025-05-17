@@ -15,21 +15,21 @@ const generateToken = (user) => {
     }
 
 module.exports = {
-Query: {
-
-    getCurrentUser: async (_,context) => {
-        if(!context.user) {
-            throw new AuthenticationError('Not authenticated');
-        }
-        const user = await User.findById(context.user.id);
-        if (!user) {
-            throw new AuthenticationError('User not found');
+    Query: {
+        getCurrentUser: async (_, __, context) => {
+          // Linia 22 la tine este probabil aici:
+          if (!context.user) { // Dacă user nu a fost setat în context (din cauza problemelor de mai sus)
+            throw new AuthenticationError('Not authenticated'); // Se aruncă această eroare
           }
-          return user;
-    },
-
-
-},
+          // Dacă context.user există, atunci se caută în BD
+          const userFromDb = await User.findById(context.user.id); // Folosește context.user.id
+          if (!userFromDb) {
+            // Asta ar însemna că user-ul din token nu mai există în DB, ceea ce e o problemă
+            throw new AuthenticationError('User from token not found in database');
+          }
+          return userFromDb;
+        },
+      },
 
  Mutation: {
     registerUser : async (
@@ -63,7 +63,7 @@ Query: {
 
         //verific daca utilizatorul exista deja
 
-        const existingUser = await User.findone({email});
+        const existingUser = await User.findOne({email});
 
         if(existingUser){
             throw new UserInputError('Email is already taken', {

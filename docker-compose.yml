@@ -4,49 +4,42 @@ services:
   # Serviciul Backend (Node.js + GraphQL)
   server:
     build:
-      context: ./server # Calea către directorul cu Dockerfile-ul serverului
+      context: ./server/src
       dockerfile: Dockerfile
     ports:
-      - "4000:4000" # Mapează portul 4000 al containerului la portul 4000 al mașinii tale host
+      - "4000:4000"
     volumes:
-      # Sincronizează directorul src pentru live-reloading cu nodemon
-      # și node_modules pentru a evita reconstruirea la fiecare modificare minoră
       - ./server/src:/usr/src/app/src
-      # Opțional, poți monta și node_modules dacă vrei să eviți ca `npm install` să ruleze la fiecare build
-
-      # dacă nu se schimbă package.json. Dar pentru simplitate, lăsăm așa.
-      # - /usr/src/app/node_modules # Previne suprascrierea node_modules din container de către un folder local gol
     environment:
       NODE_ENV: development
-      PORT: 4000 # Portul INTERN al containerului
-      # Conectare la containerul mongo_db definit mai jos.
-      # 'mongo_db' este numele serviciului MongoDB în această rețea Docker.
-      MONGO_URI: mongodb://mongo_db:27017/Proiect
-      # JWT_SECRET va fi preluat din fișierul .env de la rădăcina proiectului
-      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4000
+      MONGO_URI: mongodb://mongo_db:27017/eco_travel_planner # Conectare la containerul mongo_db
+      JWT_SECRET: ${JWT_SECRET} # Va fi preluat din .env de la rădăcină
     depends_on:
       - mongo_db # Asigură-te că MongoDB pornește înainte de server
     networks:
       - app-network
-    # restart: unless-stopped # Opțional, pentru ca serviciul să repornească automat
 
-  # Serviciul MongoDB
-  mongo_db:
-    image: mongo:6.0 # Recomandat să fixezi o versiune majoră
+  # Serviciul MongoDB (AICI ESTE DEFINIȚIA PENTRU MONGO)
+  mongo_db: # Numele serviciului (folosit în MONGO_URI de mai sus)
+    image: mongo:6.0 # Imaginea Docker MongoDB de pe Docker Hub (ex: versiunea 6.0)
+                     # Docker o va descărca automat dacă nu o ai local
     ports:
-      - "27017:27017" # Mapează portul MongoDB pentru acces local (ex: din Compass)
+      - "27017:27017" # Mapează portul containerului la portul mașinii tale host
+                     # Permite accesul la MongoDB din exteriorul containerului (ex: cu MongoDB Compass)
     volumes:
       - mongo-data:/data/db # Persistă datele MongoDB într-un volum Docker numit 'mongo-data'
+                            # Datele vor supraviețui opririi/ștergerii containerului
     networks:
       - app-network
-    # restart: unless-stopped # Opțional
+    restart: unless-stopped # Opțional: repornește containerul dacă se oprește (ex: la reboot)
 
 # Definește volumele externe (pentru persistență)
 volumes:
   mongo-data:
-    driver: local # Specifică driverul de volum (default este local)
+    driver: local
 
-# Definește rețeaua custom pentru ca serviciile să comunice între ele
+# Definește rețeaua custom
 networks:
   app-network:
     driver: bridge
