@@ -5,8 +5,8 @@ require('dotenv').config();
 
 
 const connectDB = require('./config/db');
-const typeDefs = require('./graphql/schemas'); // Va lua index.js din schemas
-const resolvers = require('./graphql/resolvers'); // Va lua index.js din resolvers
+const typeDefs = require('./graphql/schemas'); // points to index.js from schemas
+const resolvers = require('./graphql/resolvers'); // points to index.js from resolvers
 
 const jwt = require('jsonwebtoken');
 
@@ -24,7 +24,6 @@ async function startApolloServer() {
     typeDefs,
     resolvers,
     context: ({ req }) => {
-      // Poți extrage token-ul de autentificare din header și adăuga user-ul la context
       // const token = req.headers.authorization || '';
       // const user = getUserFromToken(token); // Implementează getUserFromToken
       
