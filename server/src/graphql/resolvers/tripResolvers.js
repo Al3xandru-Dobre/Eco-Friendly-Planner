@@ -13,22 +13,35 @@ const checkOwnership = (trip, context) => {
 
 
 
+// Un utilizator are acces la o călătorie doar dacă a creat-o sau este printre travelers.
+const participantFilter = (userId) => ({ $or: [{ createdBy: userId }, { travelers: userId }] });
+
+const isParticipant = (trip, userId) => String(trip.createdBy?._id ?? trip.createdBy) === String(userId)
+  || (trip.travelers || []).some((t) => String(t?._id ?? t) === String(userId));
+
 module.exports = {
   Query: {
-    getTrips: async () => {
+    // Lista era publică și expunea toate călătoriile și email-urile. Acum: doar cele la care participi.
+    getTrips: async (_, __, context) => {
+      if (!context.user) {
+        throw new AuthenticationError('You must be logged in to view trips.');
+      }
       try {
-        // Populează și travelers dacă este necesar la afișarea generală
-        const trips = await Trip.find().sort({ createdAt: -1 }).populate('createdBy').populate('travelers');
+        const trips = await Trip.find(participantFilter(context.user.id)).sort({ createdAt: -1 }).populate('createdBy').populate('travelers');
         return trips;
       } catch (err) {
         console.error("Error fetching trips:", err);
         throw new Error("Failed to fetch trips.");
       }
     },
-    getTrip: async (_, { tripId }) => {
+    getTrip: async (_, { tripId }, context) => {
+      if (!context.user) {
+        throw new AuthenticationError('You must be logged in to view a trip.');
+      }
       try {
         const trip = await Trip.findById(tripId).populate('createdBy').populate('travelers');
-        if (!trip) {
+        // Același mesaj pentru "nu există" și "nu ai acces", ca să nu confirmăm existența ID-ului.
+        if (!trip || !isParticipant(trip, context.user.id)) {
           throw new UserInputError('Trip not found');
         }
         return trip;
@@ -36,16 +49,19 @@ module.exports = {
         if (err.kind === 'ObjectId') {
           throw new UserInputError('Invalid Trip ID format');
         }
+        if (err instanceof UserInputError) {
+          throw err;
+        }
         console.error(`Error fetching trip ${tripId}:`, err);
         throw new Error(`Failed to fetch trip.`);
       }
     },
-    getUserTrips: async (_, __, context) => { // Am scos userId, luăm din context
+    getUserTrips: async (_, __, context) => {
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view your trips.');
       }
       try {
-        // Găsește călătoriile create de user-ul autentificat
+        // Doar călătoriile utilizatorului autentificat; ID-ul vine din token, nu din input.
         const trips = await Trip.find({ createdBy: context.user.id })
           .sort({ startDate: -1 }) // Sortează după data de început, cele mai recente primele
           .populate('createdBy')
@@ -159,7 +175,7 @@ module.exports = {
         checkOwnership(trip, context); // Verifică dacă user-ul este proprietarul
 
         const currentTransportationType = updateTripInput.transportationType || trip.transportationType
-        const currentDistanceKm = updateTripInput.distanceKm || trip.distanceKm;
+        const currentDistanceKm = updateTripInput.distanceKm ?? trip.distanceKm;
 
         let currentNumberOfTravelers = trip.numberOfTravelers;
 
@@ -179,7 +195,7 @@ module.exports = {
 
         currentNumberOfTravelers = Math.max(1, currentNumberOfTravelers);
 
-        if(updateTripInput.transportationType || updateTripInput.distanceKm || updateTripInput.numberOfTravelers) {
+        if(updateTripInput.transportationType || updateTripInput.distanceKm !== undefined || updateTripInput.numberOfTravelers !== undefined) {
           
           updateTripInput.carbonFootprintKgCO2e = calculateTransportCarbonFootprint({
           

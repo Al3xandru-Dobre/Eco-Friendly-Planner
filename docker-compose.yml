@@ -1,45 +1,78 @@
 version: '3.8'
 
+# Eco-Friendly Planner
+#   client      React UI served by nginx, proxies /graphql and /booking-api  -> http://localhost:3000
+#   server      Planner GraphQL API (users, trips, carbon)                    -> http://localhost:4000/graphql
+#   booking-api Dedicated booking REST API (stays, dining, reservations)      -> http://localhost:5000/api/v1
+#   mongo_db    MongoDB 6, one database per service
+
 services:
-  # Serviciul Backend (Node.js + GraphQL)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+      - booking-api
+    networks:
+      - app-network
+    restart: unless-stopped
+
   server:
     build:
-      context: ./server/src
+      context: ./server
       dockerfile: Dockerfile
     ports:
       - "4000:4000"
-    volumes:
-      - ./server/src:/usr/src/app/src
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 4000
-      MONGO_URI: mongodb://mongo_db:27017/eco_travel_planner # Conectare la containerul mongo_db
-      JWT_SECRET: ${JWT_SECRET} # Va fi preluat din .env de la rădăcină
+      MONGO_URI: mongodb://mongo_db:27017/eco_travel_planner
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      BOOKING_API_URL: http://booking-api:5000
     depends_on:
-      - mongo_db # Asigură-te că MongoDB pornește înainte de server
+      - mongo_db
+      - booking-api
     networks:
       - app-network
+    restart: unless-stopped
 
-  # Serviciul MongoDB (AICI ESTE DEFINIȚIA PENTRU MONGO)
-  mongo_db: # Numele serviciului (folosit în MONGO_URI de mai sus)
-    image: mongo:6.0 # Imaginea Docker MongoDB de pe Docker Hub (ex: versiunea 6.0)
-                     # Docker o va descărca automat dacă nu o ai local
+  booking-api:
+    build:
+      context: ./booking-api
+      dockerfile: Dockerfile
     ports:
-      - "27017:27017" # Mapează portul containerului la portul mașinii tale host
-                     # Permite accesul la MongoDB din exteriorul containerului (ex: cu MongoDB Compass)
-    volumes:
-      - mongo-data:/data/db # Persistă datele MongoDB într-un volum Docker numit 'mongo-data'
-                            # Datele vor supraviețui opririi/ștergerii containerului
+      - "5000:5000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 5000
+      MONGO_URI: mongodb://mongo_db:27017/eco_bookings
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env} # same secret as the planner: one login for both APIs
+      DATA_DRIVER: mongo
+      SEED_ON_START: "true"
+      CORS_ORIGIN: "*"
+    depends_on:
+      - mongo_db
     networks:
       - app-network
-    restart: unless-stopped # Opțional: repornește containerul dacă se oprește (ex: la reboot)
+    restart: unless-stopped
 
-# Definește volumele externe (pentru persistență)
+  mongo_db:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   mongo-data:
     driver: local
 
-# Definește rețeaua custom
 networks:
   app-network:
     driver: bridge
