@@ -59,9 +59,9 @@ input UpdateTripInput {
 }
 
 extend type Query {
-  getTrips: [Trip!]
-  getTrip(tripId: ID!): Trip
-  getUserTrips(userId: ID): [Trip!] # Călătoriile unui user (implicit: utilizatorul autentificat)
+  getTrips: [Trip!] # Călătoriile la care utilizatorul autentificat participă
+  getTrip(tripId: ID!): Trip # Doar pentru creator sau travelers
+  getUserTrips: [Trip!] # Călătoriile create de utilizatorul autentificat
 }
 
 extend type Mutation {

@@ -54,6 +54,4 @@ module.exports = {
   BOOKING_API_URL,
   listBookings: (authorization, params) => request(withQuery('/bookings', params), { authorization }).then((r) => r.items),
   getSummary: (authorization, params) => request(withQuery('/bookings/summary', params), { authorization }),
-  cancelBooking: (authorization, id) => request(`/bookings/${encodeURIComponent(id)}`, { authorization, method: 'DELETE' }),
-  health: () => request('/../../health'),
 };

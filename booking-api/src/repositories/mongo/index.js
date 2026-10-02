@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { randomUUID } = require('crypto');
 const { Hotel, Restaurant, Booking } = require('./models');
+const { MATCH_ALL } = require('../../domain/filters/FilterBuilder');
 
 /** Converts a lean Mongo document into the plain shape the services expect. */
 function normalize(doc) {
@@ -10,9 +11,8 @@ function normalize(doc) {
 }
 
 class MongoCatalogRepository {
-  constructor(Model, queryBuilder) {
+  constructor(Model) {
     this.Model = Model;
-    this.queryBuilder = queryBuilder;
   }
 
   async insertMany(items) {
@@ -31,12 +31,9 @@ class MongoCatalogRepository {
     return this.Model.countDocuments();
   }
 
-  /**
-   * The memory repository takes a predicate; the Mongo one takes the original
-   * query object and translates it. The service passes both so either works.
-   */
-  async findAll(_predicate, query = {}) {
-    const docs = await this.Model.find(this.queryBuilder(query)).lean();
+  /** @param {{ toMongo(): object }} filter Specification from FilterBuilder */
+  async findAll(filter = MATCH_ALL) {
+    const docs = await this.Model.find(filter.toMongo()).lean();
     return docs.map(normalize);
   }
 
@@ -95,12 +92,11 @@ class MongoBookingRepository {
 }
 
 async function createMongoRepositories({ mongoUri }) {
-  const { hotelMongoQuery, restaurantMongoQuery } = require('../../domain/catalogFilters');
   await mongoose.connect(mongoUri);
   return {
     driver: 'mongo',
-    hotels: new MongoCatalogRepository(Hotel, hotelMongoQuery),
-    restaurants: new MongoCatalogRepository(Restaurant, restaurantMongoQuery),
+    hotels: new MongoCatalogRepository(Hotel),
+    restaurants: new MongoCatalogRepository(Restaurant),
     bookings: new MongoBookingRepository(),
     async close() {
       await mongoose.disconnect();

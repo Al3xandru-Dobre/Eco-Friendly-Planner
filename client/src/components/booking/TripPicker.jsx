@@ -1,15 +1,11 @@
 import { Link } from 'react-router-dom';
-import { gql } from '../../api/graphql';
-import { MY_TRIPS } from '../../api/queries';
-import { useAuth } from '../../context/AuthContext';
-import { useAsync } from '../../lib/useAsync';
+import { useMyTrips } from '../../hooks/useMyTrips';
 import { fmtRange } from '../../lib/format';
 import { Field } from '../Primitives';
 
 /** Lets a traveller attach a booking to one of their trips. */
 export function TripPicker({ value, onChange, lockedTrip }) {
-  const { token } = useAuth();
-  const { data, loading } = useAsync(() => gql(MY_TRIPS, {}, token).then((d) => d.getUserTrips || []), [token], { enabled: Boolean(token) && !lockedTrip });
+  const { trips, loading } = useMyTrips({ enabled: !lockedTrip });
 
   if (lockedTrip) {
     return (
@@ -18,7 +14,6 @@ export function TripPicker({ value, onChange, lockedTrip }) {
       </Field>
     );
   }
-  const trips = data || [];
   return (
     <Field label="Attach to a trip" hint={!loading && !trips.length ? undefined : 'Optional. Attached bookings count toward the trip footprint.'}>
       <select className="input" value={value || ''} onChange={(e) => onChange(e.target.value || null)} disabled={loading}>

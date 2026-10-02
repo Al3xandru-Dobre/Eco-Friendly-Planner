@@ -1,6 +1,17 @@
-export const USER_FIELDS = 'id name email createdAt';
+/**
+ * GraphQL documents used by the client, and only those.
+ *
+ * Field fragments are module-private: they are building blocks, not API.
+ * Every exported operation has at least one caller (see AuthContext, Trips,
+ * TripForm, TripDetail, TripPicker). Bookings are read and written through
+ * src/api/booking.js against the booking API, not through GraphQL.
+ *
+ * Data minimisation: request only fields the UI renders. Co-travellers'
+ * emails, for example, are not requested.
+ */
+const USER_FIELDS = 'id name email createdAt';
 
-export const BOOKING_FIELDS = `
+const BOOKING_FIELDS = `
   id reference type status tripId notes createdAt cancelledAt
   venue { id name city country }
   hotel { hotelId roomTypeCode roomTypeName checkIn checkOut nights guests rooms }
@@ -9,14 +20,14 @@ export const BOOKING_FIELDS = `
   ecoImpact { carbonKgCO2e baselineKgCO2e carbonSavedKgCO2e savingsPercent }
 `;
 
-export const TRIP_FIELDS = `
+const TRIP_FIELDS = `
   id destination startDate endDate description transportationType accommodationType
   distanceKm numberOfTravelers carbonFootprintKgCO2e ecoScore ecoRating notes createdAt updatedAt
   createdBy { id name }
-  travelers { id name email }
+  travelers { id name }
 `;
 
-export const TRIP_WITH_BOOKINGS = `
+const TRIP_WITH_BOOKINGS = `
   ${TRIP_FIELDS}
   totalCarbonFootprintKgCO2e
   bookingSummary { count confirmedCount cancelledCount hotelNights restaurantCovers carbonKgCO2e baselineKgCO2e carbonSavedKgCO2e totals { currency amount } }
@@ -50,7 +61,3 @@ export const UPDATE_TRIP = `
   }`;
 
 export const DELETE_TRIP = `mutation DeleteTrip($id: ID!) { deleteTrip(tripId: $id) }`;
-
-export const MY_BOOKINGS = `query MyBookings($tripId: ID, $status: BookingStatus, $type: BookingType) {
-  myBookings(tripId: $tripId, status: $status, type: $type) { ${BOOKING_FIELDS} }
-}`;

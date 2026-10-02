@@ -1,10 +1,6 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { bookingApi } from '../../api/booking';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { useAsync } from '../../lib/useAsync';
-import { addDays, money, today } from '../../lib/format';
+import { useHotelBooking } from '../../hooks/useHotelBooking';
+import { money } from '../../lib/format';
 import { ErrorBanner, Field, ImpactBar, Spinner } from '../Primitives';
 import { TripPicker } from './TripPicker';
 
@@ -13,47 +9,20 @@ import { TripPicker } from './TripPicker';
  * trip when opened from a trip page; otherwise from tomorrow.
  */
 export function HotelBookingPanel({ hotel, defaults = {}, lockedTrip, onBooked }) {
-  const { token, user } = useAuth();
-  const toast = useToast();
-  const [checkIn, setCheckIn] = useState(defaults.checkIn || addDays(today(), 7));
-  const [checkOut, setCheckOut] = useState(defaults.checkOut || addDays(defaults.checkIn || addDays(today(), 7), 2));
-  const [guests, setGuests] = useState(defaults.guests || 2);
-  const [rooms, setRooms] = useState(1);
-  const [tripId, setTripId] = useState(lockedTrip?.id || defaults.tripId || null);
-  const [notes, setNotes] = useState('');
-  const [busyCode, setBusyCode] = useState(null);
-  const [submitError, setSubmitError] = useState(null);
-
-  const valid = checkIn && checkOut && checkOut > checkIn;
-  const { data, error, loading, reload } = useAsync(
-    () => bookingApi.hotelAvailability(hotel.id, { checkIn, checkOut, guests, rooms }),
-    [hotel.id, checkIn, checkOut, guests, rooms],
-    { enabled: valid },
-  );
-
-  async function book(room) {
-    setSubmitError(null);
-    setBusyCode(room.code);
-    try {
-      const booking = await bookingApi.bookHotel(token, { hotelId: hotel.id, roomTypeCode: room.code, checkIn, checkOut, guests, rooms, tripId: tripId || undefined, notes: notes || undefined });
-      toast.success(`Booked ${hotel.name}`, `${room.name}, ${booking.hotel.nights} night${booking.hotel.nights === 1 ? '' : 's'} · ref ${booking.reference}`);
-      onBooked?.(booking);
-      reload();
-    } catch (err) {
-      setSubmitError(err);
-      if (err.status === 409) reload();
-    } finally {
-      setBusyCode(null);
-    }
-  }
+  const {
+    user, checkIn, checkOut, guests, rooms, tripId, notes, busyCode, submitError,
+    availability: { data, error, loading },
+    minCheckIn, minCheckOut,
+    setCheckOut, setTripId, setNotes, changeCheckIn, changeGuests, changeRooms, book,
+  } = useHotelBooking({ hotel, defaults, lockedTrip, onBooked });
 
   return (
     <div className="stack">
       <div className="form-grid">
-        <Field label="Check-in" htmlFor="checkIn"><input id="checkIn" type="date" className="input" value={checkIn} min={today()} onChange={(e) => { setCheckIn(e.target.value); if (checkOut <= e.target.value) setCheckOut(addDays(e.target.value, 1)); }} /></Field>
-        <Field label="Check-out" htmlFor="checkOut"><input id="checkOut" type="date" className="input" value={checkOut} min={addDays(checkIn, 1)} onChange={(e) => setCheckOut(e.target.value)} /></Field>
-        <Field label="Guests" htmlFor="guests"><input id="guests" type="number" className="input" min={1} max={20} value={guests} onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))} /></Field>
-        <Field label="Rooms" htmlFor="rooms"><input id="rooms" type="number" className="input" min={1} max={10} value={rooms} onChange={(e) => setRooms(Math.max(1, Number(e.target.value) || 1))} /></Field>
+        <Field label="Check-in" htmlFor="checkIn"><input id="checkIn" type="date" className="input" value={checkIn} min={minCheckIn} onChange={(e) => changeCheckIn(e.target.value)} /></Field>
+        <Field label="Check-out" htmlFor="checkOut"><input id="checkOut" type="date" className="input" value={checkOut} min={minCheckOut} onChange={(e) => setCheckOut(e.target.value)} /></Field>
+        <Field label="Guests" htmlFor="guests"><input id="guests" type="number" className="input" min={1} max={20} value={guests} onChange={(e) => changeGuests(e.target.value)} /></Field>
+        <Field label="Rooms" htmlFor="rooms"><input id="rooms" type="number" className="input" min={1} max={10} value={rooms} onChange={(e) => changeRooms(e.target.value)} /></Field>
       </div>
       {user && <TripPicker value={tripId} onChange={setTripId} lockedTrip={lockedTrip} />}
       {user && <Field label="Notes for the hotel" htmlFor="notes"><input id="notes" className="input" placeholder="Arrival by train around 18:00, no daily housekeeping" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1000} /></Field>}

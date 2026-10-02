@@ -1,4 +1,5 @@
 const { randomUUID } = require('crypto');
+const { MATCH_ALL } = require('../../domain/filters/FilterBuilder');
 
 /**
  * In-memory repositories. They implement exactly the same interface as the
@@ -24,8 +25,9 @@ class MemoryCatalogRepository {
     return this.items.size;
   }
 
-  async findAll(predicate = () => true) {
-    return [...this.items.values()].filter(predicate).map((v) => structuredClone(v));
+  /** @param {{ matches(doc): boolean }} filter Specification from FilterBuilder */
+  async findAll(filter = MATCH_ALL) {
+    return [...this.items.values()].filter((item) => filter.matches(item)).map((v) => structuredClone(v));
   }
 
   async findById(id) {

@@ -1,4 +1,3 @@
-const { AuthenticationError, ApolloError } = require('apollo-server-express');
 const bookingClient = require('../../services/bookingClient');
 
 const authHeader = (context) => (context.req && context.req.headers.authorization) || '';
@@ -7,19 +6,10 @@ const authHeader = (context) => (context.req && context.req.headers.authorizatio
 const ownerId = (createdBy) => String(createdBy?._id ?? createdBy?.id ?? createdBy ?? '');
 const isOwner = (trip, context) => Boolean(context.user) && ownerId(trip.createdBy) === String(context.user.id);
 
-/** Converts a booking API error into a GraphQL error without leaking stack traces. */
-function translate(err) {
-  if (err instanceof bookingClient.BookingApiError) {
-    return new ApolloError(err.message, err.code, { status: err.status });
-  }
-  console.warn('[planner] booking API unreachable:', err.message);
-  return new ApolloError('The booking service is currently unavailable', 'BOOKING_API_UNAVAILABLE');
-}
-
 /**
  * Field resolvers on Trip are deliberately tolerant: if the booking service is
- * down, the trip itself must still load. Only the explicit Query/Mutation
- * surface raises errors to the caller.
+ * down, the trip itself must still load, so failures degrade to empty values
+ * and a logged warning. Booking data is shown to the trip owner only.
  */
 async function tripBookings(trip, { status }, context) {
   if (!isOwner(trip, context)) return [];
@@ -46,26 +36,6 @@ async function tripSummary(trip, _args, context) {
 }
 
 module.exports = {
-  Query: {
-    myBookings: async (_, args, context) => {
-      if (!context.user) throw new AuthenticationError('You must be logged in to view your bookings.');
-      try {
-        return await bookingClient.listBookings(authHeader(context), args);
-      } catch (err) {
-        throw translate(err);
-      }
-    },
-  },
-  Mutation: {
-    cancelBooking: async (_, { bookingId }, context) => {
-      if (!context.user) throw new AuthenticationError('You must be logged in to cancel a booking.');
-      try {
-        return await bookingClient.cancelBooking(authHeader(context), bookingId);
-      } catch (err) {
-        throw translate(err);
-      }
-    },
-  },
   Trip: {
     bookings: tripBookings,
     bookingSummary: tripSummary,

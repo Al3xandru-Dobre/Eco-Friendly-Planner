@@ -1,4 +1,4 @@
-const { hotelPredicate } = require('../domain/catalogFilters');
+const { hotelFilter } = require('../domain/catalogFilters');
 const { hotelStayImpact } = require('../domain/ecoImpact');
 const { notFound, badRequest } = require('../utils/httpError');
 const {
@@ -35,7 +35,7 @@ function createHotelService({ repos }) {
     };
     const stay = parseStayWindow(rawQuery, { required: false });
 
-    let hotels = await repos.hotels.findAll(hotelPredicate(query), query);
+    let hotels = await repos.hotels.findAll(hotelFilter(query));
 
     if (stay) {
       // Keep only hotels with at least one room type that can host the party.

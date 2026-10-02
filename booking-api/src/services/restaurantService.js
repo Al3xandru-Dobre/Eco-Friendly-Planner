@@ -1,4 +1,4 @@
-const { restaurantPredicate } = require('../domain/catalogFilters');
+const { restaurantFilter } = require('../domain/catalogFilters');
 const { restaurantMealImpact } = require('../domain/ecoImpact');
 const { RESTAURANT_SEATING_MINUTES, RESTAURANT_SLOT_MINUTES } = require('../domain/catalog');
 const { notFound } = require('../utils/httpError');
@@ -52,7 +52,7 @@ function createRestaurantService({ repos }) {
       minRating: optionalNumber(rawQuery.minRating, 'minRating', { min: 0, max: 5 }),
       q: optionalString(rawQuery.q, 'q', { maxLength: 100 }),
     };
-    let restaurants = await repos.restaurants.findAll(restaurantPredicate(query), query);
+    let restaurants = await repos.restaurants.findAll(restaurantFilter(query));
 
     let visit = null;
     if (rawQuery.date || rawQuery.time || rawQuery.partySize) {

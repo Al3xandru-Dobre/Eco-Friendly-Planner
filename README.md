@@ -108,11 +108,19 @@ type Trip {
   bookingSummary: BookingSummary                   # cost and carbon totals of confirmed bookings
   totalCarbonFootprintKgCO2e: Float                # transport + stays + meals
 }
-extend type Query    { myBookings(tripId: ID, status: BookingStatus, type: BookingType): [Booking!]! }
-extend type Mutation { cancelBooking(bookingId: ID!): Booking! }
 ```
 
-If the booking API is unreachable the trip still loads; the booking fields return empty and a warning is logged.
+Booking fields are read-only and visible to the trip owner only. Creating, listing and cancelling bookings goes straight to the booking API, which enforces ownership, so there is a single write path to secure. If the booking API is unreachable the trip still loads; the booking fields return empty and a warning is logged.
+
+### Access rules
+
+| Operation | Who may call it |
+|---|---|
+| `getTrip` | The creator or a listed traveller; anyone else gets "Trip not found" |
+| `getTrips` | Authenticated users; returns only trips they created or travel on |
+| `getUserTrips` | Authenticated users; returns trips they created (the id comes from the token) |
+| `updateTrip`, `deleteTrip` | The creator only |
+| `loginUser` | Anyone; a wrong email and a wrong password return the same "Wrong credentials" error |
 
 ## Tests
 

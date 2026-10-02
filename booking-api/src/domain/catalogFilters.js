@@ -1,85 +1,45 @@
 /**
- * Catalogue filtering, expressed twice on purpose:
- *   - as a predicate (used by the in-memory repository and by tests),
- *   - as a MongoDB query builder (used by the Mongo repository).
- * Keeping both next to each other makes it easy to see that they encode the
- * same rules. Availability filters (dates, party size) are NOT handled here
- * because they depend on existing bookings; the services apply them.
+ * Catalogue filters, declared once with the FilterBuilder.
+ *
+ * Each function reads like the list of criteria it supports. Absent criteria
+ * are skipped by the builder, and the resulting Specification works for both
+ * the in-memory and the MongoDB repositories.
+ *
+ * Availability (dates, party size) is NOT a catalogue filter: it depends on
+ * existing bookings, so the services apply it after this step.
  */
+const { FilterBuilder } = require('./filters/FilterBuilder');
 
-const ci = (value) => String(value).trim().toLowerCase();
-const includesAll = (haystack = [], needles = []) => needles.every((n) => haystack.includes(n));
-const textMatches = (venue, q) => {
-  const needle = ci(q);
-  return [venue.name, venue.city, venue.country, venue.description, ...(venue.cuisine || [])]
-    .filter(Boolean)
-    .some((field) => ci(field).includes(needle));
-};
+const HOTEL_TEXT_FIELDS = ['name', 'city', 'country', 'description'];
+const RESTAURANT_TEXT_FIELDS = ['name', 'city', 'country', 'description', 'cuisine'];
 
-function hotelPredicate(q) {
-  return (h) => {
-    if (q.city && ci(h.city) !== ci(q.city)) return false;
-    if (q.country && ci(h.country) !== ci(q.country)) return false;
-    if (q.certifications && !includesAll(h.certifications, q.certifications)) return false;
-    if (q.features && !includesAll(h.sustainabilityFeatures, q.features)) return false;
-    if (q.minEcoScore !== undefined && h.ecoScore < q.minEcoScore) return false;
-    if (q.minRating !== undefined && h.rating < q.minRating) return false;
-    if (q.maxPrice !== undefined && h.lowestPricePerNight > q.maxPrice) return false;
-    if (q.q && !textMatches(h, q.q)) return false;
-    return true;
-  };
+function hotelFilter(q = {}) {
+  return new FilterBuilder()
+    .equalsIgnoreCase('city', q.city)
+    .equalsIgnoreCase('country', q.country)
+    .containsAll('certifications', q.certifications)
+    .containsAll('sustainabilityFeatures', q.features)
+    .atLeast('ecoScore', q.minEcoScore)
+    .atLeast('rating', q.minRating)
+    .atMost('lowestPricePerNight', q.maxPrice)
+    .textSearch(HOTEL_TEXT_FIELDS, q.q)
+    .build();
 }
 
-function hotelMongoQuery(q) {
-  const query = {};
-  if (q.city) query.city = ciExact(q.city);
-  if (q.country) query.country = ciExact(q.country);
-  if (q.certifications) query.certifications = { $all: q.certifications };
-  if (q.features) query.sustainabilityFeatures = { $all: q.features };
-  if (q.minEcoScore !== undefined) query.ecoScore = { $gte: q.minEcoScore };
-  if (q.minRating !== undefined) query.rating = { $gte: q.minRating };
-  if (q.maxPrice !== undefined) query.lowestPricePerNight = { $lte: q.maxPrice };
-  if (q.q) query.$or = textOr(q.q, ['name', 'city', 'country', 'description']);
-  return query;
+function restaurantFilter(q = {}) {
+  return new FilterBuilder()
+    .equalsIgnoreCase('city', q.city)
+    .equalsIgnoreCase('country', q.country)
+    .equalsIgnoreCase('cuisine', q.cuisine)
+    .containsAll('dietaryOptions', q.dietary)
+    .containsAll('certifications', q.certifications)
+    .containsAll('sustainabilityFeatures', q.features)
+    .atMost('priceLevel', q.maxPriceLevel)
+    .atLeast('ecoScore', q.minEcoScore)
+    .atLeast('rating', q.minRating)
+    .textSearch(RESTAURANT_TEXT_FIELDS, q.q)
+    .build();
 }
-
-function restaurantPredicate(q) {
-  return (r) => {
-    if (q.city && ci(r.city) !== ci(q.city)) return false;
-    if (q.country && ci(r.country) !== ci(q.country)) return false;
-    if (q.cuisine && !r.cuisine.map(ci).includes(ci(q.cuisine))) return false;
-    if (q.dietary && !includesAll(r.dietaryOptions, q.dietary)) return false;
-    if (q.certifications && !includesAll(r.certifications, q.certifications)) return false;
-    if (q.features && !includesAll(r.sustainabilityFeatures, q.features)) return false;
-    if (q.maxPriceLevel !== undefined && r.priceLevel > q.maxPriceLevel) return false;
-    if (q.minEcoScore !== undefined && r.ecoScore < q.minEcoScore) return false;
-    if (q.minRating !== undefined && r.rating < q.minRating) return false;
-    if (q.q && !textMatches(r, q.q)) return false;
-    return true;
-  };
-}
-
-function restaurantMongoQuery(q) {
-  const query = {};
-  if (q.city) query.city = ciExact(q.city);
-  if (q.country) query.country = ciExact(q.country);
-  if (q.cuisine) query.cuisine = ciExact(q.cuisine);
-  if (q.dietary) query.dietaryOptions = { $all: q.dietary };
-  if (q.certifications) query.certifications = { $all: q.certifications };
-  if (q.features) query.sustainabilityFeatures = { $all: q.features };
-  if (q.maxPriceLevel !== undefined) query.priceLevel = { $lte: q.maxPriceLevel };
-  if (q.minEcoScore !== undefined) query.ecoScore = { $gte: q.minEcoScore };
-  if (q.minRating !== undefined) query.rating = { $gte: q.minRating };
-  if (q.q) query.$or = textOr(q.q, ['name', 'city', 'country', 'description', 'cuisine']);
-  return query;
-}
-
-const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const ciExact = (value) => new RegExp(`^${escapeRegex(String(value).trim())}$`, 'i');
-const textOr = (q, fields) => {
-  const re = new RegExp(escapeRegex(q), 'i');
-  return fields.map((f) => ({ [f]: re }));
-};
 
 /** Sort comparators shared by both repositories (sorting happens in the service). */
 const SORTERS = {
@@ -89,4 +49,4 @@ const SORTERS = {
   name: (a, b) => a.name.localeCompare(b.name),
 };
 
-module.exports = { hotelPredicate, hotelMongoQuery, restaurantPredicate, restaurantMongoQuery, SORTERS };
+module.exports = { hotelFilter, restaurantFilter, SORTERS };

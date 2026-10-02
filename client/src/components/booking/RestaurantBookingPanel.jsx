@@ -1,65 +1,26 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { bookingApi } from '../../api/booking';
-import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
-import { useAsync } from '../../lib/useAsync';
-import { addDays, fmtDate, money, today } from '../../lib/format';
+import { useRestaurantBooking } from '../../hooks/useRestaurantBooking';
+import { openingSummary } from '../../lib/openingHours';
+import { fmtDate, money } from '../../lib/format';
 import { ErrorBanner, Field, ImpactBar, Spinner } from '../Primitives';
 import { TripPicker } from './TripPicker';
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-export function openingSummary(restaurant) {
-  return restaurant.openingHours.map((p) => {
-    const days = p.days.length === 7 ? 'Daily' : p.days.map((d) => DAY_NAMES[d]).join(', ');
-    return `${days} ${p.open}–${p.close}`;
-  }).join(' · ');
-}
-
 export function RestaurantBookingPanel({ restaurant, defaults = {}, dateBounds = {}, lockedTrip, onBooked }) {
-  const { token, user } = useAuth();
-  const toast = useToast();
-  const [date, setDate] = useState(defaults.date || dateBounds.min || addDays(today(), 1));
-  const [partySize, setPartySize] = useState(defaults.partySize || 2);
-  const [time, setTime] = useState(null);
-  const [tripId, setTripId] = useState(lockedTrip?.id || defaults.tripId || null);
-  const [notes, setNotes] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-
-  const { data, error, loading, reload } = useAsync(
-    () => bookingApi.restaurantAvailability(restaurant.id, { date, partySize }),
-    [restaurant.id, date, partySize],
-    { enabled: Boolean(date) },
-  );
-
-  async function reserve() {
-    if (!time) return;
-    setSubmitError(null);
-    setBusy(true);
-    try {
-      const booking = await bookingApi.bookRestaurant(token, { restaurantId: restaurant.id, date, time, partySize, tripId: tripId || undefined, notes: notes || undefined });
-      toast.success(`Table reserved at ${restaurant.name}`, `${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })} at ${time} for ${partySize} · ref ${booking.reference}`);
-      onBooked?.(booking);
-      setTime(null);
-      reload();
-    } catch (err) {
-      setSubmitError(err);
-      if (err.status === 409) reload();
-    } finally {
-      setBusy(false);
-    }
-  }
+  const {
+    user, date, partySize, time, tripId, notes, busy, submitError,
+    availability: { data, error, loading },
+    minDate, maxDate,
+    setTime, setTripId, setNotes, changeDate, changePartySize, reserve,
+  } = useRestaurantBooking({ restaurant, defaults, dateBounds, lockedTrip, onBooked });
 
   return (
     <div className="stack">
       <div className="form-grid">
         <Field label="Date" htmlFor="date" hint={openingSummary(restaurant)}>
-          <input id="date" type="date" className="input" value={date} min={dateBounds.min || today()} max={dateBounds.max || undefined} onChange={(e) => { setDate(e.target.value); setTime(null); }} />
+          <input id="date" type="date" className="input" value={date} min={minDate} max={maxDate} onChange={(e) => changeDate(e.target.value)} />
         </Field>
         <Field label="Party size" htmlFor="partySize">
-          <input id="partySize" type="number" className="input" min={1} max={30} value={partySize} onChange={(e) => { setPartySize(Math.max(1, Number(e.target.value) || 1)); setTime(null); }} />
+          <input id="partySize" type="number" className="input" min={1} max={30} value={partySize} onChange={(e) => changePartySize(e.target.value)} />
         </Field>
       </div>
       {user && <TripPicker value={tripId} onChange={setTripId} lockedTrip={lockedTrip} />}

@@ -7,13 +7,11 @@ const resolvers = {
   Query: {
     ...userResolvers.Query,
     ...tripResolvers.Query,
-    ...bookingResolvers.Query,
   },
 
   Mutation: {
     ...userResolvers.Mutation,
     ...tripResolvers.Mutation,
-    ...bookingResolvers.Mutation,
   },
 
   // Field resolvers: Trip gets its booking fields from the booking API client.

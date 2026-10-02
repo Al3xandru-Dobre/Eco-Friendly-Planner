@@ -100,14 +100,14 @@ module.exports = {
         const user = await User.findOne({email}).select('+password'); // selectez explicit parola
 
         if(!user){
-            throw new UserInputError('User not found with this email', {
+            throw new UserInputError('Wrong credentials', {
                 errors: { general: 'Wrong credentials' }, // Mesaj generic pentru securitate
               });
         }
 
         const match = await user.comparePassword(password);
         if(!match) {
-            throw new UserInputError('Incorrect password', {
+            throw new UserInputError('Wrong credentials', {
                 errors: { general: 'Wrong credentials' }, // Mesaj generic
               });
         }

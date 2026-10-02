@@ -92,10 +92,6 @@ extend type Trip {
   totalCarbonFootprintKgCO2e: Float
 }
 
-extend type Query {
-  myBookings(tripId: ID, status: BookingStatus, type: BookingType): [Booking!]!
-}
-
-extend type Mutation {
-  cancelBooking(bookingId: ID!): Booking!
-}
+# Listing and cancelling bookings is done against the booking API directly
+# (it enforces ownership). The planner only exposes read-only trip fields, so
+# there is exactly one write path for bookings to secure.
