@@ -1,7 +1,7 @@
 // server/src/graphql/schemas/index.js
 const { gql } = require('apollo-server-express');
-const fs = require('fs'); // Comentat dacă nu e folosit
- const path = require('path'); // Comentat dacă nu e folosit
+const fs = require('fs');
+const path = require('path');
 
 const baseTypeDefs = gql`
   type Query {
@@ -12,17 +12,13 @@ const baseTypeDefs = gql`
   }
 `;
 
-
-
-
-const userTypeDefs = gql(fs.readFileSync(path.join(__dirname, 'user.graphql'), 'utf-8'));
-const tripTypeDefs = gql(fs.readFileSync(path.join(__dirname, 'trip.graphql'), 'utf-8'));
+const load = (file) => gql(fs.readFileSync(path.join(__dirname, file), 'utf-8'));
 
 const typeDefsArray = [
   baseTypeDefs,
-  userTypeDefs, 
-  tripTypeDefs, 
+  load('user.graphql'),
+  load('trip.graphql'),
+  load('booking.graphql'),
 ];
-
 
 module.exports = typeDefsArray;

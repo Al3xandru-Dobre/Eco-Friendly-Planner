@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { UserInputError, AuthenticationError } = require('apollo-server-express');
 const User = require('../../models/User');
-const { Query } = require('./tripResolvers');
 
 const generateToken = (user) => {
         return jwt.sign(

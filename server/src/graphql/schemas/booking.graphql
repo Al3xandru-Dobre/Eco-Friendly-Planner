@@ -1,0 +1,101 @@
+# Bookings live in the dedicated booking API. The planner exposes them here so
+# a trip can be read in one query, but it never stores them itself.
+
+enum BookingType {
+  HOTEL
+  RESTAURANT
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+type BookingVenue {
+  id: ID!
+  name: String!
+  city: String
+  country: String
+}
+
+type HotelBookingDetails {
+  hotelId: ID!
+  roomTypeCode: String!
+  roomTypeName: String
+  checkIn: String!
+  checkOut: String!
+  nights: Int!
+  guests: Int!
+  rooms: Int!
+}
+
+type RestaurantBookingDetails {
+  restaurantId: ID!
+  date: String!
+  time: String!
+  partySize: Int!
+}
+
+type BookingPricing {
+  currency: String!
+  unitAmount: Float!
+  units: Int!
+  total: Float!
+}
+
+type BookingEcoImpact {
+  carbonKgCO2e: Float!
+  baselineKgCO2e: Float!
+  carbonSavedKgCO2e: Float!
+  savingsPercent: Int!
+}
+
+type Booking {
+  id: ID!
+  reference: String!
+  type: BookingType!
+  status: BookingStatus!
+  tripId: ID
+  venue: BookingVenue!
+  hotel: HotelBookingDetails
+  restaurant: RestaurantBookingDetails
+  pricing: BookingPricing!
+  ecoImpact: BookingEcoImpact!
+  notes: String
+  createdAt: String
+  cancelledAt: String
+}
+
+type CurrencyTotal {
+  currency: String!
+  amount: Float!
+}
+
+type BookingSummary {
+  count: Int!
+  confirmedCount: Int!
+  cancelledCount: Int!
+  hotelNights: Int!
+  restaurantCovers: Int!
+  totals: [CurrencyTotal!]!
+  carbonKgCO2e: Float!
+  baselineKgCO2e: Float!
+  carbonSavedKgCO2e: Float!
+}
+
+extend type Trip {
+  "Stays and tables reserved for this trip through the booking API (owner only)."
+  bookings(status: BookingStatus): [Booking!]!
+  "Cost and carbon totals of the confirmed bookings for this trip."
+  bookingSummary: BookingSummary
+  "Transport footprint plus the footprint of confirmed stays and meals."
+  totalCarbonFootprintKgCO2e: Float
+}
+
+extend type Query {
+  myBookings(tripId: ID, status: BookingStatus, type: BookingType): [Booking!]!
+}
+
+extend type Mutation {
+  cancelBooking(bookingId: ID!): Booking!
+}

@@ -59,8 +59,10 @@ function calculateTransportCarbonFootprint( {transportationType, distanceKm, num
 function calculateEcoScore({carbonFootprintKgCO2e, transportationType}) {
     let score = 100;
 
+    // Penalizează amprenta: 1 punct la fiecare 10 kg CO2e, cel mult 70 de puncte.
     if(carbonFootprintKgCO2e > 0) {
-        Math.min(carbonFootprintKgCO2e / 10, 70);    }
+        score -= Math.min(carbonFootprintKgCO2e / 10, 70);
+    }
 
     if(['TRAIN','BUS','BICYCLE','WALK'].includes(transportationType)) {
         score+=10;

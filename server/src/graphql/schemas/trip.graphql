@@ -7,7 +7,9 @@ type Trip {
   transportationType: TransportationType # Vom defini acest Enum
   accommodationType: String
   distanceKm: Float # Distanța totală
+  numberOfTravelers: Int
   carbonFootprintKgCO2e: Float # Amprenta calculată
+  ecoScore: Int # 0-100, calculat de server
   ecoRating: Float # 0-5
   notes: String
   travelers: [User!] # Relație cu User
@@ -59,7 +61,7 @@ input UpdateTripInput {
 extend type Query {
   getTrips: [Trip!]
   getTrip(tripId: ID!): Trip
-  getUserTrips(userId: ID!): [Trip!] # Călătoriile unui user specific
+  getUserTrips(userId: ID): [Trip!] # Călătoriile unui user (implicit: utilizatorul autentificat)
 }
 
 extend type Mutation {

@@ -40,13 +40,14 @@ module.exports = {
         throw new Error(`Failed to fetch trip.`);
       }
     },
-    getUserTrips: async (_, __, context) => { // Am scos userId, luăm din context
+    getUserTrips: async (_, { userId }, context) => {
       if (!context.user) {
         throw new AuthenticationError('You must be logged in to view your trips.');
       }
+      // Implicit: călătoriile utilizatorului autentificat; userId permite și listarea altui user.
+      const ownerId = userId || context.user.id;
       try {
-        // Găsește călătoriile create de user-ul autentificat
-        const trips = await Trip.find({ createdBy: context.user.id })
+        const trips = await Trip.find({ createdBy: ownerId })
           .sort({ startDate: -1 }) // Sortează după data de început, cele mai recente primele
           .populate('createdBy')
           .populate('travelers');

@@ -1,116 +1,155 @@
-# 🌱 Eco-Friendly Planner
+# Eco-Friendly Planner
 
-A sustainable travel planning application built with Node.js, GraphQL, and MongoDB.
+A sustainable travel planner. Plan a trip, see the carbon cost of getting there, then book eco-certified stays and sustainable restaurants at the destination through a dedicated booking service. Every booking reports its estimated footprint and what it saves against a conventional equivalent.
 
-## 📋 Overview
-
-Eco-Friendly Planner is a web application designed to help users plan environmentally conscious travel itineraries. The application uses a modern tech stack with a GraphQL API backend and MongoDB database.
-
-## 🚀 Features
-
-- GraphQL API for efficient data querying
-- MongoDB database for flexible data storage
-- Docker containerization for easy deployment
-- JWT-based authentication
-- Persistent data storage
-
-## 🛠️ Tech Stack
-
-- **Backend**: Node.js with GraphQL
-- **Database**: MongoDB 6.0
-- **Containerization**: Docker & Docker Compose
-- **Authentication**: JWT (JSON Web Tokens)
-
-## 📦 Prerequisites
-
-Before running this project, make sure you have the following installed:
-
-- [Docker](https://www.docker.com/get-started)
-- [Docker Compose](https://docs.docker.com/compose/install/)
-- Node.js (for local development)
-
-## 🔧 Installation & Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Al3xandru-Dobre/Eco-Friendly-Planner.git
-   cd Eco-Friendly-Planner
-   ```
-
-2. **Create environment variables**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   JWT_SECRET=your_jwt_secret_here
-   ```
-
-3. **Start the application with Docker**
-   ```bash
-   docker-compose up --build
-   ```
-
-4. **Access the application**
-   - GraphQL API: `http://localhost:4000`
-   - MongoDB: `localhost:27017`
-
-## 🏗️ Project Structure
+## Architecture
 
 ```
-Eco-Friendly-Planner/
-├── client/                 # Frontend application
-├── server/                 # Backend GraphQL server
-│   └── src/               # Server source code
-├── docker-compose.yml     # Docker services configuration
-├── LICENSE               # GPL-3.0 License
-└── README.md            # Project documentation
+┌──────────────┐   /graphql     ┌──────────────────────┐
+│   client     │ ─────────────▶ │  server (planner)    │  users, trips, transport carbon
+│ React + Vite │                │  GraphQL · :4000     │──┐
+│  nginx :3000 │   /booking-api └──────────────────────┘  │ forwards the user's JWT
+│              │ ─────────────▶ ┌──────────────────────┐  │ to read a trip's bookings
+└──────────────┘                │  booking-api         │◀─┘
+                                │  REST · :5000        │  hotels, restaurants,
+                                └──────────────────────┘  availability, bookings
+                                        │        │
+                                 eco_travel_planner   eco_bookings   (MongoDB 6, one DB each)
 ```
 
-## 🐳 Docker Services
+The three services are independent deployables:
 
-The application uses Docker Compose to orchestrate two main services:
+| Service | Stack | Purpose |
+|---|---|---|
+| `client/` | React 19, Vite, plain CSS design system | Trip planning UI, venue discovery, booking flows, dark mode, responsive |
+| `server/` | Node, Apollo Server (GraphQL), Mongoose | Accounts (JWT), trips, transport carbon and eco score; exposes a trip's bookings by calling the booking API |
+| `booking-api/` | Node, Express, Mongoose | Eco-certified hotels and sustainable restaurants, live availability, reservations, cost and carbon summaries; OpenAPI documented |
 
-- **server**: Node.js GraphQL API running on port 4000
-- **mongo_db**: MongoDB database running on port 27017
+Authentication is shared: the booking API verifies the planner's JWT with the same `JWT_SECRET`, so a single login covers both APIs and the booking API can enforce ownership of bookings without its own user store.
 
-## 🔒 Environment Variables
+## Quick start (Docker)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Application environment | `development` |
-| `PORT` | Server port | `4000` |
-| `MONGO_URI` | MongoDB connection string | `mongodb://mongo_db:27017/eco_travel_planner` |
-| `JWT_SECRET` | Secret key for JWT authentication | Required in `.env` |
+```bash
+cp .env.example .env          # set JWT_SECRET
+docker compose up --build
+```
 
-## 💾 Data Persistence
+| URL | What |
+|---|---|
+| http://localhost:3000 | Web app |
+| http://localhost:4000/graphql | Planner GraphQL (Apollo Sandbox in development) |
+| http://localhost:5000/api/v1/docs | Booking API reference (OpenAPI) |
+| http://localhost:5000/health | Booking API health and catalogue size |
 
-MongoDB data is persisted using Docker volumes, ensuring your data survives container restarts and removals.
+The booking API seeds a sample catalogue of 14 stays and 14 restaurants across 12 European cities on first start. The venues are fictional and illustrative.
 
-## 🛠️ Development
+## Running locally without Docker
 
-To work on the project locally:
+You need Node 18+ and a MongoDB instance (or run the booking API with the in-memory driver).
 
-1. The server code in `./server/src` is mounted as a volume
-2. Changes to the source code will be reflected in the container
-3. MongoDB can be accessed using tools like [MongoDB Compass](https://www.mongodb.com/products/compass)
+```bash
+# Booking API
+cd booking-api && cp .env.example .env && npm install && npm run dev
+#   DATA_DRIVER=memory JWT_SECRET=dev npm start   # no MongoDB needed
 
-## 📝 License
+# Planner GraphQL server
+cd server/src && npm install
+JWT_SECRET=dev MONGO_URI=mongodb://localhost:27017/eco_travel_planner BOOKING_API_URL=http://localhost:5000 npm run dev
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+# Client (Vite proxies /graphql -> :4000 and /booking-api -> :5000)
+cd client && npm install && npm run dev
+```
 
-## 👤 Author
+Use the same `JWT_SECRET` for the planner and the booking API.
 
-**Al3xandru-Dobre**
+## Booking API
 
-- GitHub: [@Al3xandru-Dobre](https://github.com/Al3xandru-Dobre)
+Base path `/api/v1`. Public catalogue endpoints need no token; everything under `/bookings` needs `Authorization: Bearer <planner JWT>`.
 
-## 🤝 Contributing
+| Method | Path | Description |
+|---|---|---|
+| GET | `/hotels` | Search stays: `city`, `country`, `q`, `certification`, `feature`, `minEcoScore`, `minRating`, `maxPrice`, `sort`, `page`, `limit`; add `checkIn`, `checkOut`, `guests`, `rooms` to keep only hotels with availability |
+| GET | `/hotels/{id}` | Hotel details, room types, certifications, per-night carbon |
+| GET | `/hotels/{id}/availability` | Rooms left per room type for a stay, with total price and eco impact |
+| GET | `/restaurants` | Search dining: `city`, `cuisine`, `dietary`, `certification`, `feature`, `maxPriceLevel`, `minEcoScore`, …; add `date`, `time`, `partySize` to keep only restaurants with a free slot |
+| GET | `/restaurants/{id}` | Restaurant details, opening hours, per-meal carbon |
+| GET | `/restaurants/{id}/availability` | Bookable time slots and seats left for a date and party size |
+| POST | `/bookings/hotels` | Book a room: `hotelId`, `roomTypeCode`, `checkIn`, `checkOut`, `guests`, `rooms`, `tripId?`, `notes?` |
+| POST | `/bookings/restaurants` | Reserve a table: `restaurantId`, `date`, `time`, `partySize`, `tripId?`, `notes?` |
+| GET | `/bookings` | My bookings, filter by `tripId`, `status`, `type` |
+| GET | `/bookings/summary` | Confirmed count, room-nights, covers, totals per currency, carbon and savings (optionally for one `tripId`) |
+| GET | `/bookings/{id}` · DELETE `/bookings/{id}` | Read or cancel (soft, idempotent) one of my bookings |
+| GET | `/destinations` · `/reference` | Cities with venue counts; enumerations and eco baselines |
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Al3xandru-Dobre/Eco-Friendly-Planner/issues).
+Errors are JSON: `{ "error": { "code", "message", "details?" } }` with `400` validation, `401` missing token, `403` not the owner, `404` unknown, `409` no availability.
 
-## ⭐ Show your support
+### Booking rules
 
-Give a ⭐️ if this project helped you!
+- A hotel booking occupies one or more rooms of a room type for `[checkIn, checkOut)`; a stay that begins on another's check-out day does not overlap. Guests must fit `capacity × rooms`.
+- A restaurant reservation occupies seats for 90 minutes from its slot. Slots run every 30 minutes within opening hours. A slot is bookable when the covers of all overlapping confirmed reservations plus the new party fit the seating capacity.
+- Cancellation is soft (`status: CANCELLED`) and immediately frees rooms or seats.
 
----
+### Eco model
 
-Made with 💚 for a sustainable future
+All factors are indicative and live in one place (`booking-api/src/domain/ecoImpact.js`). A stay is compared with 20 kg CO₂e per guest-night, a meal with 3.5 kg per cover. Venue eco scores (0–100) weight measured carbon intensity (up to 60 points) above certifications (up to 24) and declared features (up to 16). The planner's trip score penalises transport emissions by one point per 10 kg, capped at 70, with bonuses for low-carbon modes.
+
+### Storage drivers
+
+The service layer talks to a small repository interface. `DATA_DRIVER=mongo` (default) persists to MongoDB; `DATA_DRIVER=memory` keeps everything in process, which the test-suite and local demos use. Both implement identical filtering rules (`booking-api/src/domain/catalogFilters.js`).
+
+## Planner GraphQL additions
+
+```graphql
+type Trip {
+  # ...existing fields, plus:
+  numberOfTravelers: Int
+  ecoScore: Int
+  bookings(status: BookingStatus): [Booking!]!     # owner only, fetched from the booking API
+  bookingSummary: BookingSummary                   # cost and carbon totals of confirmed bookings
+  totalCarbonFootprintKgCO2e: Float                # transport + stays + meals
+}
+extend type Query    { myBookings(tripId: ID, status: BookingStatus, type: BookingType): [Booking!]! }
+extend type Mutation { cancelBooking(bookingId: ID!): Booking! }
+```
+
+If the booking API is unreachable the trip still loads; the booking fields return empty and a warning is logged.
+
+## Tests
+
+```bash
+cd booking-api && npm test     # node:test + supertest against the in-memory driver
+cd client && npm run build     # type/bundle check of the UI
+```
+
+## Environment variables
+
+| Variable | Service | Description |
+|---|---|---|
+| `JWT_SECRET` | server, booking-api | Shared signing secret. Required. |
+| `MONGO_URI` | server, booking-api | MongoDB connection string (separate databases) |
+| `PORT` | all | Listening port (4000 planner, 5000 booking API) |
+| `BOOKING_API_URL` | server | Where the planner reaches the booking API (`http://booking-api:5000` in Compose) |
+| `DATA_DRIVER` | booking-api | `mongo` or `memory` |
+| `SEED_ON_START` | booking-api | Seed the sample catalogue when empty (`true`) |
+| `CORS_ORIGIN` | booking-api | Allowed browser origins, comma separated, or `*` |
+| `VITE_GRAPHQL_URL`, `VITE_BOOKING_API_URL` | client | Override the proxied relative API paths |
+
+## Project structure
+
+```
+├── client/                 React app (src/pages, src/components, src/api, src/styles)
+├── server/                 Planner GraphQL API (Dockerfile + src/)
+│   └── src/graphql/        schemas/*.graphql, resolvers/
+├── booking-api/            Dedicated booking REST API
+│   ├── src/domain/         eco model, catalogue vocabulary, filters
+│   ├── src/repositories/   memory/ and mongo/ drivers behind one interface
+│   ├── src/services/       availability and booking rules
+│   ├── src/routes/         Express routers · src/docs/openapi.js
+│   ├── src/data/           sample catalogue and seeding
+│   └── test/               API tests
+└── docker-compose.yml
+```
+
+## License
+
+GNU General Public License v3.0. See [LICENSE](LICENSE).
